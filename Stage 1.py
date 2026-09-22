@@ -66,7 +66,7 @@ def initialise_database():
             user_id INTEGER NOT NULL,
             date DATE NOT NULL,
             FOREIGN KEY (product_id) REFERENCES products(id),
-            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
 
@@ -100,7 +100,7 @@ def initialise_database():
 
 def hash_password(plaintext):
     # hashes the passwords
-    return hashlib.sha256(plaintext.encode("utf-8)).hexdigest()"))
+    return hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
 
 def today():
     # checks if simulation mode is active and returns either the simulated or actual date
@@ -172,3 +172,5 @@ def record_stock_movement(user_id, movement_id, movement_type, quantity):
     )
     conn.commit()
     conn.close()
+
+initialise_database()
