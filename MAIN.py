@@ -172,3 +172,22 @@ def record_stock_movement(user_id, movement_id, movement_type, quantity):
     )
     conn.commit()
     conn.close()
+
+# Stage 2
+
+def authenticate_user(username, password):
+    # looks up user by username, hashes password and compares against stored hash, if successful logs a LOGIN action
+    conn = get_connection()
+    user = conn.execute(
+        "SELECT * FROM users WHERE username = ?", (username,)
+    ).fetchone()
+    conn.close()
+
+    if user is None:
+        return False
+
+    if hash_password(password) == user["password_hash"]:
+        record_user_action(user["id"], "LOGIN")
+        return user
+    else:
+        return False
