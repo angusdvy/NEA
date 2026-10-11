@@ -195,6 +195,7 @@ def authenticate_user(username, password):
 # Stage 3
 
 def add_product(name, price, category, reorder_level, is_perishable, user_id):
+    # adds a product to database and logs the change
     if name == "" or price < 0 or reorder_level < 0:
         return {"success": False, "error": "Invalid Input"}
 
@@ -216,6 +217,7 @@ def add_product(name, price, category, reorder_level, is_perishable, user_id):
     return {"success": True, "id": new_id}
 
 def edit_product(product_id, name, price, category, reorder_level, user_id):
+    # edits a product in the database and logs the change
     conn = get_connection()
     old_values = conn.execute(
         "SELECT * FROM products WHERE id = ?", (product_id,)
@@ -243,6 +245,7 @@ def edit_product(product_id, name, price, category, reorder_level, user_id):
     return {"success": True}
 
 def delete_product(product_id, user_id):
+    # deletes a product from the database after checking for dependencies and logs the change
     conn = get_connection()
     old_values = conn.execute(
         "SELECT * FROM products WHERE id = ?", (product_id,)
@@ -272,6 +275,7 @@ def delete_product(product_id, user_id):
     return {"success": True}
 
 def archive_product(product_id, user_id):
+    # archives a product from the database and logs the change
     conn = get_connection()
     old_values = conn.execute(
         "SELECT * FROM products WHERE id = ?", (product_id,)
@@ -292,6 +296,7 @@ def archive_product(product_id, user_id):
     return {"success": True}
 
 def search_products(term):
+    # allows the database to be searched from a term by the name category or id
     conn = get_connection()
     like_term = f"%{term}%"
     results = conn.execute(
@@ -304,12 +309,14 @@ def search_products(term):
     return results
 
 def sort_products(field, direction="ASC"):
+    # allows the database to be sorted by a field in ASC or DESC
     conn = get_connection()
     query = f"SELECT * FROM products WHERE active = 1 ORDER BY {field} {direction}"
     results = conn.execute(query).fetchall()
     return results
 
 def get_product_list(search_term=None, sort_field=None, sort_direction="ASC"):
+    # fetches a list of either all products or a specific search term and allows them to be sorted
     if search_term:
         products = search_products(search_term)
     else:
