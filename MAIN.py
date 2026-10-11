@@ -191,3 +191,136 @@ def authenticate_user(username, password):
         return user
     else:
         return False
+
+# Stage 3
+
+def add_product(name, price, category, reorder_level, is_perishable, user_id):
+    if name == "" or price < 0 or reorder_level < 0:
+        return {"success": False, "error": "Invalid Input"}
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """INSERT INTO products (name, price, category, reorder_level, is_perishable, active)
+        VALUES (?, ?, ?, ?, ?, 1)""",
+        (name, price, category, reorder_level, is_perishable)
+    )
+    new_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+
+    record_product_change(
+        user_id, new_id, "CREATE", None,
+        {"name": name, "price": price, "category": category, "reorder_level": reorder_level}
+    )
+    return {"success": True, "id": new_id}
+
+def edit_product(product_id, name, price, category, reorder_level, user_id):
+    conn = get_connection()
+    old_values = conn.execute(
+        "SELECT * FROM products WHERE id = ?", (product_id,)
+    ).fetchone()
+
+    if old_values is None:
+        conn.close()
+        return {"success": False, "error": "Not found"}
+
+    if name == "" or price < 0 or reorder_level < 0:
+        conn.close()
+        return {"success": False, "error": "Inalid Input"}
+
+    conn.execute(
+        """UPDATE products SET name = ?, price = ?, category = ?, reorder_level = ?
+        WHERE id = ?""",
+        (name, price, category, reorder_level, product_id)
+    )
+    conn.commit()
+    conn.close()
+
+    old_dict = dict(old_values)
+    new_dict = {"name": name, "price": price, "category": category, "reorder_level": reorder_level}
+    record_product_change(user_id, product_id, "EDIT", old_dict, new_dict)
+    return {"success": True}
+
+def delete_product(product_id, user_id):
+    conn = get_connection()
+    old_values = conn.execute(
+        "SELECT * FROM products WHERE id = ?", (product_id,)
+    ).fetchone()
+
+    if old_values is None:
+        conn.close()
+        return {"success": False, "error": "Not found"}
+
+    movement_count = conn.execute(
+        "SELECT COUNT(*) FROM stock_movements WHERE product_id = ?", (product_id,)
+    ).fetchone()[0]
+    batch_count = conn.execute(
+        "SELECT COUNT (*) FROM batches WHERE product_id = ?", (product_id,)
+    ).fetchone()[0]
+    dependencies = movement_count + batch_count
+
+    if dependencies > 0:
+        conn.close()
+        return {"success": False, "error": "Cannot delete"}
+
+    conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
+    conn.commit()
+    conn.close()
+
+    record_product_change(user_id, product_id, "DELETE", dict(old_values), None)
+    return {"success": True}
+
+def archive_product(product_id, user_id):
+    conn = get_connection()
+    old_values = conn.execute(
+        "SELECT * FROM products WHERE id = ?", (product_id,)
+    ).fetchone()
+
+    if old_values is None:
+        conn.close()
+        return {"success": False, "error": "Not found"}
+
+    conn.execute("UPDATE products SET active = 0 WHERE id = ?", (product_id,))
+    conn.commit()
+    conn.close()
+
+    old_dict = dict(old_values)
+    new_dict = dict(old_values)
+    new_dict["active"] = False
+    record_product_change(user_id, product_id, "ARCHIVE", old_dict, new_dict)
+    return {"success": True}
+
+def search_products(term):
+    conn = get_connection()
+    like_term = f"%{term}%"
+    results = conn.execute(
+        """SELECT * FROM products
+        WHERE (name LIKE ? OR category LIKE ? OR CAST(id AS TEXT) LIKE ?)
+        AND active = 1""",
+        (like_term, like_term, like_term)
+    ).fetchall()
+    conn.close()
+    return results
+
+def sort_products(field, direction="ASC"):
+    conn = get_connection()
+    query = f"SELECT * FROM products WHERE active = 1 ORDER BY {field} {direction}"
+    results = conn.execute(query).fetchall()
+    return results
+
+def get_product_list(search_term=None, sort_field=None, sort_direction="ASC"):
+    if search_term:
+        products = search_products(search_term)
+    else:
+        conn = get_connection()
+        products = conn.execute("SELECT * FROM products WHERE active = 1").fetchall()
+        conn.close()
+
+    if sort_field:
+        rows = [dict(r) for r in products]
+        reverse = (sort_direction.upper() == "DESC")
+        rows.sort(key=lambda r: r[sort_field], reverse=reverse)
+        return rows
+
+    return products
