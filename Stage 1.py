@@ -172,5 +172,3 @@ def record_stock_movement(user_id, movement_id, movement_type, quantity):
     )
     conn.commit()
     conn.close()
-
-initialise_database()
